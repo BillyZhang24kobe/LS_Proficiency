@@ -63,21 +63,43 @@ def format_test_prompt(target_word, sentence):
 
 
 class Evaluator(object):
-    def __init__(self, args, model, tokenizer, eval_dataset, metrics='hard', print_results=False):
+    def __init__(self, args, model, tokenizer, eval_dataset, metrics='hard', print_results=False, aspect='acc', topk=10):
+        """ Initialize the Evaluator. 
+        Args:
+            args: TrainingArguments
+            model: Pretrained model
+            tokenizer: Pretrained tokenizer
+            eval_dataset: Path to the evaluation dataset
+            metrics: 'hard' or 'soft'
+            print_results: True or False
+            aspect: 'acc' or 'prof'
+            topk: top k candidates to be considered as substitutes
+        """
         self.args = args
         self.model = model
         self.tokenizer = tokenizer
         self.eval_dataset = eval_dataset
         self.metrics = metrics
         self.print_results = print_results
+        self.aspect = aspect
+        self.topk = topk
 
     def calculate_metrics(self, labels, preds):
-        """ Calculate the precision, recall, and F1 score. """
+        """ Calculate the precision, recall, and F1 score. 
+        Args:
+            labels: gold labels -> list
+            preds: predicted substitutes -> list
+        Returns:
+            precision: precision score
+            recall: recall score
+            f1: F1 score
+        """
         precision = 0
         recall = 0
         f1 = 0
 
         for label, pred in zip(labels, preds):
+            pred = pred[:self.topk]
             try:
                 precision += len(set(label).intersection(set(pred))) / len(set(pred))
             except Exception as e:
@@ -85,9 +107,17 @@ class Evaluator(object):
                 print("Pred: ", pred)
                 print("Label: ", label)
                 precision += 0
-            recall += len(set(label).intersection(set(pred))) / len(set(label))
-            f1 += 2 * (len(set(label).intersection(set(pred))) / (len(set(pred)) + len(set(label))))
+            recall += len(set(label).intersection(set(pred))) / min(self.topk, len(set(label)))
+            # f1 is the harmonic mean of precision and recall
+            try:
+                f1 += 2 * precision * recall / (precision + recall)
+            except Exception as e:
+                print(e)
+                print("Pred: ", pred)
+                print("Label: ", label)
+                f1 += 0
 
+        # average over all the labels
         precision /= len(labels)
         recall /= len(labels)
         f1 /= len(labels)
@@ -101,12 +131,15 @@ class Evaluator(object):
         # store the predicted substitutes in a txt file
         with open("predicted_substitutes.txt", "w") as f:
             for i, row in eval_df.iterrows():
-                target_word = row['target_words']
-                sentence = row['Sentences']
+                target_word = row['target word']
+                sentence = row['Sentence']
                 f.write("Target word: " + target_word + "\n")
                 f.write("Sentence: " + sentence + "\n")
+                if self.aspect == 'acc':
+                    f.write("Gold substitutes: " + str(ast.literal_eval(row["acceptable_substitutes"])) + "\n")
+                elif self.aspect == 'prof':
+                    f.write("Gold substitutes: " + str(ast.literal_eval(row["prof_acceptable_substitutes"])) + "\n")
                 f.write("Predicted substitutes: " + str(preds[i]) + "\n")
-                f.write("Gold substitutes: " + str(ast.literal_eval(row["substitutes"])) + "\n")
                 f.write("--------------------------------------------------" + "\n")
                 f.write("\n")
 
@@ -124,8 +157,8 @@ class Evaluator(object):
         # no gradient calculation
         with torch.no_grad():
             for _, row in eval_df.iterrows():
-                target_word = row['target_words']
-                sentence = row['Sentences']
+                target_word = row['target word']
+                sentence = row['Sentence']
                 system_input = format_test_prompt(target_word, sentence)
 
                 input_ids = tokenizer.encode(system_input, return_tensors='pt', add_special_tokens=True)
@@ -150,14 +183,17 @@ class Evaluator(object):
                     print("Generated text: ", generated_texts)
                     pred = []
                 model_preds.append(pred)
-                gold_labels.append(ast.literal_eval(row["substitutes"]))
+                if self.aspect == 'acc':
+                    gold_labels.append(ast.literal_eval(row["acceptable_substitutes"]))
+                elif self.aspect == 'prof':
+                    gold_labels.append(ast.literal_eval(row["prof_acceptable_substitutes"]))
 
         # print the results if print_results is True
         if self.print_results:
             self.print_prediction_results(model_preds)
 
         # Compute precision, recall, and F1
-        if self.metrics == 'soft':
+        if self.metrics == 'hard':
             # get the lemma of the predicted substitutes and gold substitutes
             model_preds_lemma = []
             gold_labels_lemma = []
@@ -181,8 +217,9 @@ class Evaluator(object):
 
             return precision, recall, f1
         
-        elif self.metrics == 'hard':
-            return  self.calculate_metrics(gold_labels, model_preds)
+        # TODO: implement soft metrics
+        # elif self.metrics == 'soft':
+        #     return  self.calculate_metrics(gold_labels, model_preds)
 
     def predict_single_turn(self, 
                              inputs: Tuple[str, str]):
@@ -271,7 +308,7 @@ if __name__ == "__main__":
 
     # evaluate
     print("Evaluating...")
-    evaluator = Evaluator(training_args, model, tokenizer, data_args.data_path, metrics='hard', print_results=True)
+    evaluator = Evaluator(training_args, model, tokenizer, data_args.data_path, metrics='hard', print_results=True, aspect='acc')
     metrics = evaluator.evaluate()
     print("Precision: ", metrics[0])
     print("Recall: ", metrics[1])
