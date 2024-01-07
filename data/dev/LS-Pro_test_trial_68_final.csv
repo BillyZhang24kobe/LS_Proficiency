@@ -1,4 +1,4 @@
-target word,Sentence,acceptable_substitutes,unacceptable_substitutes,prof_acceptable_substitutes,prof_unacceptable_substitutes
+target word,Sentence,acc_subs,unacc_subs,prof_acc_subs,prof_unacc_subs
 overall,"Both perspectives are important, but **overall**, I disagree with the statement that advertising influences my choice.","['generally', 'fundamentally', 'essentially']","['primarily', 'mostly']","['fundamentally', 'essentially']",['generally']
 concrete,"For example, my academic advisor professor Cho, who was studying Traffic engineering in the Ph. D course, is a famous professor regarding **concrete** pavement in Korea.",['cement'],"['solid', 'tangible', 'specific', 'actual']",['cement'],[]
 case,I have my grandmother's **case**.,['container'],"['crate', 'package']",['container'],[]

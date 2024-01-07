@@ -94,35 +94,71 @@ class Evaluator(object):
             recall: recall score
             f1: F1 score
         """
-        precision = 0
-        recall = 0
-        f1 = 0
+
+        # Verify if labels and preds have the same length
+        if len(labels) != len(preds):
+            raise ValueError("The length of labels and preds must be the same")
+        
+        numerator = 0
+        p_denominator = 0
+        r_denominator = 0
 
         for label, pred in zip(labels, preds):
+            if len(label) == 0: continue
             pred = pred[:self.topk]
-            try:
-                precision += len(set(label).intersection(set(pred))) / len(set(pred))
-            except Exception as e:
-                print(e)
-                print("Pred: ", pred)
-                print("Label: ", label)
-                precision += 0
-            recall += len(set(label).intersection(set(pred))) / min(self.topk, len(set(label)))
-            # f1 is the harmonic mean of precision and recall
-            try:
-                f1 += 2 * precision * recall / (precision + recall)
-            except Exception as e:
-                print(e)
-                print("Pred: ", pred)
-                print("Label: ", label)
-                f1 += 0
+            num_acceptable = len(set(label).intersection(set(pred)))
+            numerator += num_acceptable
+            p_denominator += len(set(pred))
+            r_denominator += min(self.topk, len(set(label)))
 
-        # average over all the labels
-        precision /= len(labels)
-        recall /= len(labels)
-        f1 /= len(labels)
+        precision = numerator / p_denominator
+        recall = numerator / r_denominator
+        f1 = (2 * precision * recall) / (precision + recall)
 
         return precision, recall, f1
+    
+        # total_precision = 0
+        # total_recall = 0
+        # f1_scores = []
+
+        # for label, pred in zip(labels, preds):
+        #     pred = pred[:self.topk]
+        #     num_acceptable = len(set(label).intersection(set(pred)))
+        #     try:
+        #         precision = num_acceptable / len(set(pred))
+        #     except Exception as e:
+        #         print(e)
+        #         print("Pred: ", pred)
+        #         print("Label: ", label)
+        #         precision = 0
+
+        #     recall = num_acceptable / min(self.topk, len(set(label)))
+
+        #     # Calculate F1 score only if both precision and recall are not zero
+        #     if precision + recall > 0:
+        #         f1 = 2 * precision * recall / (precision + recall)
+        #         f1_scores.append(f1)
+        #     else:
+        #         f1_scores.append(0)
+
+        #     total_precision += precision
+        #     total_recall += recall
+
+        #     # f1 is the harmonic mean of precision and recall
+        #     # try:
+        #     #     f1 += 2 * (precision * recall) / (precision + recall)
+        #     # except Exception as e:
+        #     #     print(e)
+        #     #     print("Pred: ", pred)
+        #     #     print("Label: ", label)
+        #     #     f1 += 0
+
+        # # average over all the labels
+        # avg_precision = total_precision / len(labels)
+        # avg_recall = total_recall / len(labels)
+        # avg_f1 = sum(f1_scores) / len(f1_scores) if f1_scores else 0
+
+        # return avg_precision, avg_recall, avg_f1
     
     def print_prediction_results(self, preds):
         """ Print the prediction results. """
@@ -136,9 +172,9 @@ class Evaluator(object):
                 f.write("Target word: " + target_word + "\n")
                 f.write("Sentence: " + sentence + "\n")
                 if self.aspect == 'acc':
-                    f.write("Gold substitutes: " + str(ast.literal_eval(row["acceptable_substitutes"])) + "\n")
+                    f.write("Gold substitutes: " + str(ast.literal_eval(row["acc_subs"])) + "\n")
                 elif self.aspect == 'prof':
-                    f.write("Gold substitutes: " + str(ast.literal_eval(row["prof_acceptable_substitutes"])) + "\n")
+                    f.write("Gold substitutes: " + str(ast.literal_eval(row["prof_acc_subs"])) + "\n")
                 f.write("Predicted substitutes: " + str(preds[i]) + "\n")
                 f.write("--------------------------------------------------" + "\n")
                 f.write("\n")
@@ -153,6 +189,9 @@ class Evaluator(object):
 
         # eval mode
         self.model.eval()
+
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
 
         # no gradient calculation
         with torch.no_grad():
@@ -169,7 +208,8 @@ class Evaluator(object):
                 generated_ids = self.model.generate(
                     input_ids,
                     max_length=self.tokenizer.model_max_length,
-                    temperature=0.2)
+                    temperature=0.2,
+                    pad_token_id=self.tokenizer.pad_token_id)
                 
                 # Decode the candidates.
                 generated_texts = self.tokenizer.batch_decode(
@@ -184,16 +224,16 @@ class Evaluator(object):
                     pred = []
                 model_preds.append(pred)
                 if self.aspect == 'acc':
-                    gold_labels.append(ast.literal_eval(row["acceptable_substitutes"]))
+                    gold_labels.append(ast.literal_eval(row["acc_subs"]))
                 elif self.aspect == 'prof':
-                    gold_labels.append(ast.literal_eval(row["prof_acceptable_substitutes"]))
+                    gold_labels.append(ast.literal_eval(row["prof_acc_subs"]))
 
         # print the results if print_results is True
         if self.print_results:
             self.print_prediction_results(model_preds)
 
         # Compute precision, recall, and F1
-        if self.metrics == 'hard':
+        if self.metrics == 'soft':
             # get the lemma of the predicted substitutes and gold substitutes
             model_preds_lemma = []
             gold_labels_lemma = []
@@ -217,9 +257,8 @@ class Evaluator(object):
 
             return precision, recall, f1
         
-        # TODO: implement soft metrics
-        # elif self.metrics == 'soft':
-        #     return  self.calculate_metrics(gold_labels, model_preds)
+        elif self.metrics == 'hard':
+            return  self.calculate_metrics(gold_labels, model_preds)
 
     def predict_single_turn(self, 
                              inputs: Tuple[str, str]):
@@ -250,6 +289,7 @@ class Evaluator(object):
         
         return generated_texts[0]
     
+
 
 if __name__ == "__main__":
 
@@ -283,7 +323,6 @@ if __name__ == "__main__":
 
     device = torch.device('cuda:0')  
     model.to(device)
-    print(f"Model moved to: {torch.cuda.current_device()}")
     model = model.bfloat16()
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
@@ -308,7 +347,7 @@ if __name__ == "__main__":
 
     # evaluate
     print("Evaluating...")
-    evaluator = Evaluator(training_args, model, tokenizer, data_args.data_path, metrics='hard', print_results=True, aspect='acc')
+    evaluator = Evaluator(training_args, model, tokenizer, data_args.data_path, metrics='hard', print_results=True, aspect='prof')
     metrics = evaluator.evaluate()
     print("Precision: ", metrics[0])
     print("Recall: ", metrics[1])

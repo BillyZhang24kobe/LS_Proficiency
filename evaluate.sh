@@ -24,7 +24,7 @@
 #     --fsdp_transformer_layer_cls_to_wrap 'LlamaDecoderLayer'
 
 CUDA_VISIBLE_DEVICES=3 python3 evaluate.py \
-    --model_name_or_path "/local/data/xuanming/models/output_vicuna_13b_trial_lr_1e_5/checkpoint-357" \
+    --model_name_or_path "/local/data/xuanming/models/output_llama2_13b_train_lr_1e_5/checkpoint-1384" \
     --data_path data/dev/LS-Pro_test_trial_68_final.csv \
     --bf16 True \
     --output_dir outputs/vicuna-7b-v1.5_trial \

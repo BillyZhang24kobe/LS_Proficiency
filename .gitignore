@@ -28,6 +28,7 @@ checkpoints_flant5_3b
 # Data
 *.pkl
 tests/state_of_the_union.txt
+*.txt
 
 # Build
 build

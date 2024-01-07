@@ -1,8 +1,8 @@
-WAND_NAME="train_vicuna_13b_lr_1e_5_swords" CUDA_VISIBLE_DEVICES=5,7 torchrun --nproc_per_node=2 --master_port=20003 fastchat/train/train_mem.py \
-    --model_name_or_path "lmsys/vicuna-13b-v1.5" \
-    --data_path data/train/train_swords_filtered.csv  \
+WAND_NAME="train_llama2_13b_lr_1e_5_swords" CUDA_VISIBLE_DEVICES=1,2 torchrun --nproc_per_node=2 --master_port=20005 fastchat/train/train_mem.py \
+    --model_name_or_path "/local/data/shared/huggingface/llama-2-models/llama-2-13b-hf" \
+    --data_path data/train/train_swords_filtered.csv \
     --bf16 True \
-    --output_dir /local/data/xuanming/models/output_vicuna_13b_train_swords_lr_1e_5 \
+    --output_dir /local/data/xuanming/models/output_llama2_13b_train_swords_lr_1e_5 \
     --num_train_epochs 5 \
     --per_device_train_batch_size 1 \
     --per_device_eval_batch_size 2 \
@@ -23,11 +23,11 @@ WAND_NAME="train_vicuna_13b_lr_1e_5_swords" CUDA_VISIBLE_DEVICES=5,7 torchrun --
     --fsdp "full_shard auto_wrap" \
     --fsdp_transformer_layer_cls_to_wrap 'LlamaDecoderLayer'
 
-# WAND_NAME="train_lr_1e_5_swords" CUDA_VISIBLE_DEVICES=6 python fastchat/train/train_mem.py \
-#     --model_name_or_path "lmsys/vicuna-7b-v1.5" \
+# WAND_NAME="train_lr_1e_5_llama7b_swords" CUDA_VISIBLE_DEVICES=0 python fastchat/train/train_mem.py \
+#     --model_name_or_path "/local/data/shared/huggingface/llama-2-models/llama-2-7b-hf" \
 #     --data_path data/train/train_swords_filtered.csv \
 #     --bf16 True \
-#     --output_dir /local/data/xuanming/models/output_vicuna_7b_train_swords_lr_1e_5 \
+#     --output_dir /local/data/xuanming/models/output_llama2_7b_train_swords_lr_1e_5 \
 #     --num_train_epochs 10 \
 #     --per_device_train_batch_size 1 \
 #     --per_device_eval_batch_size 2 \
@@ -45,5 +45,3 @@ WAND_NAME="train_vicuna_13b_lr_1e_5_swords" CUDA_VISIBLE_DEVICES=5,7 torchrun --
 #     --model_max_length 2048 \
 #     --gradient_checkpointing True \
 #     --lazy_preprocess False \
-    # --fsdp "full_shard auto_wrap" \
-    # --fsdp_transformer_layer_cls_to_wrap 'LlamaDecoderLayer'

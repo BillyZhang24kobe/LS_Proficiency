@@ -454,7 +454,7 @@ def generate_final_data(generated_df, output_path):
 
 
 # load test data
-test_df = pd.read_csv('../data/ann_data/test_set/test_688_acc_unacc_deleteEmptyAcc.csv', index_col=False)
+test_df = pd.read_csv('../data/ann_data/test_set/test_241_acc_unacc_deleteEmptyAcc.csv', index_col=False)
 target_words, context_sentences, substitutes, acc_substitutes, unacc_substitutes, CEFR_level_t_word, CEFR_level_substitute = get_cefr_annotation(test_df)
 
 # store the generated data into a dataframe
@@ -474,9 +474,9 @@ generated_df = generated_df.dropna()
 # drop rows where CEFR_level_t_word is null
 generated_df = generated_df[~(generated_df['CEFR_level_t_word'] == 'None')]
 
-generated_df.to_csv('../data/ann_data/test_set/test_688_acc_unacc_deleteEmptyAcc_CEFR_unravel.csv', index=False)
+generated_df.to_csv('../data/ann_data/test_set/test_241_acc_unacc_deleteEmptyAcc_CEFR_unravel.csv', index=False)
 
-generate_final_data(generated_df, '../data/ann_data/test_set/LS-Pro_test_688_final_cefr.csv')
+generate_final_data(generated_df, '../data/ann_data/test_set/LS-Pro_test_241_final_cefr.csv')
 
 
 
