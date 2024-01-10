@@ -18,6 +18,7 @@ from dataset import *
 import ast
 import spacy
 import os
+from tqdm import tqdm
 
 # global variables
 nlp = spacy.load("en_core_web_sm")
@@ -63,11 +64,11 @@ def format_test_prompt(target_word, sentence):
 
 
 class Evaluator(object):
-    def __init__(self, args, model, tokenizer, eval_dataset, metrics='hard', print_results=False, aspect='acc', topk=10):
+    def __init__(self, args, model, eval_dataset, tokenizer=None, metrics='hard', print_results=False, aspect='acc', topk=10):
         """ Initialize the Evaluator. 
         Args:
             args: TrainingArguments
-            model: Pretrained model
+            model: Pretrained model or model_name ('gpt-4', 'ChatGPT', 'para-ls', 'bert-ls')
             tokenizer: Pretrained tokenizer
             eval_dataset: Path to the evaluation dataset
             metrics: 'hard' or 'soft'
@@ -164,8 +165,9 @@ class Evaluator(object):
         """ Print the prediction results. """
         eval_df = pd.read_csv(self.eval_dataset, index_col=False)
         
+        print("Printing prediction results...")
         # store the predicted substitutes in a txt file
-        with open("predicted_substitutes.txt", "w") as f:
+        with open(self.args.model_name_or_path+"-"+self.metrics+"-"+self.aspect+"-"+"predicted_substitutes.txt", "w") as f:
             for i, row in eval_df.iterrows():
                 target_word = row['target word']
                 sentence = row['Sentence']
@@ -181,52 +183,66 @@ class Evaluator(object):
 
     def evaluate(self):
         """ Evaluate the model on the given dataset. """
-
-        eval_df = pd.read_csv(self.eval_dataset, index_col=False)
-
         model_preds = []
         gold_labels = []
 
-        # eval mode
-        self.model.eval()
+        eval_df = pd.read_csv(self.eval_dataset, index_col=False)
+        
+        if self.model in ['gpt-4', 'gpt-3.5-turbo-1106', 'gpt-3.5-turbo', 'para-ls', 'bert-ls']:
+            pred_df = pd.read_csv("outputs/"+self.model+'_'+self.eval_dataset.split('/')[-1], index_col=False)
 
-        if self.tokenizer.pad_token is None:
-            self.tokenizer.pad_token = self.tokenizer.eos_token
+            for i in tqdm(range(len(eval_df))):
+                gold_row = eval_df.iloc[i]
+                pred_row = pred_df.iloc[i]
 
-        # no gradient calculation
-        with torch.no_grad():
-            for _, row in eval_df.iterrows():
-                target_word = row['target word']
-                sentence = row['Sentence']
-                system_input = format_test_prompt(target_word, sentence)
-
-                input_ids = tokenizer.encode(system_input, return_tensors='pt', add_special_tokens=True)
-                input_ids = input_ids.cuda()  # TODO: change to a device
-                # print("System input length: ", int(input_ids.ne(self.tokenizer.pad_token_id).sum()))
-
-                # Generate the candidates.
-                generated_ids = self.model.generate(
-                    input_ids,
-                    max_length=self.tokenizer.model_max_length,
-                    temperature=0.2,
-                    pad_token_id=self.tokenizer.pad_token_id)
-                
-                # Decode the candidates.
-                generated_texts = self.tokenizer.batch_decode(
-                    generated_ids, skip_special_tokens=True)
-                
-                # print(generated_texts)
-                try:
-                    pred = generated_texts[0].split("Substitutes: ")[1].split(", ")
-                except Exception as e:
-                    print(e)
-                    print("Generated text: ", generated_texts)
-                    pred = []
+                pred = pred_row['Substitutes'].split(", ")
                 model_preds.append(pred)
                 if self.aspect == 'acc':
-                    gold_labels.append(ast.literal_eval(row["acc_subs"]))
+                    gold_labels.append(ast.literal_eval(gold_row["acc_subs"]))
                 elif self.aspect == 'prof':
-                    gold_labels.append(ast.literal_eval(row["prof_acc_subs"]))
+                    gold_labels.append(ast.literal_eval(gold_row["prof_acc_subs"]))
+        else:
+            # eval mode
+            self.model.eval()
+
+            if self.tokenizer.pad_token is None:
+                self.tokenizer.pad_token = self.tokenizer.eos_token
+
+            # no gradient calculation
+            with torch.no_grad():
+                for i in tqdm(range(len(eval_df))):
+                    row = eval_df.iloc[i]
+                    target_word = row['target word']
+                    sentence = row['Sentence']
+                    system_input = format_test_prompt(target_word, sentence)
+
+                    input_ids = tokenizer.encode(system_input, return_tensors='pt', add_special_tokens=True)
+                    input_ids = input_ids.cuda()  # TODO: change to a device
+                    # print("System input length: ", int(input_ids.ne(self.tokenizer.pad_token_id).sum()))
+
+                    # Generate the candidates.
+                    generated_ids = self.model.generate(
+                        input_ids,
+                        max_length=self.tokenizer.model_max_length,
+                        temperature=0.2,
+                        pad_token_id=self.tokenizer.pad_token_id)
+                    
+                    # Decode the candidates.
+                    generated_texts = self.tokenizer.batch_decode(
+                        generated_ids, skip_special_tokens=True)
+                    
+                    # print(generated_texts)
+                    try:
+                        pred = generated_texts[0].split("Substitutes: ")[1].split(", ")
+                    except Exception as e:
+                        print(e)
+                        print("Generated text: ", generated_texts)
+                        pred = []
+                    model_preds.append(pred)
+                    if self.aspect == 'acc':
+                        gold_labels.append(ast.literal_eval(row["acc_subs"]))
+                    elif self.aspect == 'prof':
+                        gold_labels.append(ast.literal_eval(row["prof_acc_subs"]))
 
         # print the results if print_results is True
         if self.print_results:
@@ -298,57 +314,80 @@ if __name__ == "__main__":
         (ModelArguments, DataArguments, TrainingArguments)
     )
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
-    local_rank = training_args.local_rank
 
-     # Set RoPE scaling factor
-    config = transformers.AutoConfig.from_pretrained(
-        model_args.model_name_or_path,
-        cache_dir=training_args.cache_dir,
-        trust_remote_code=model_args.trust_remote_code,
-    )
+    if model_args.model_name_or_path in ['gpt-4', 'gpt-3.5-turbo-1106', 'gpt-3.5-turbo', 'para-ls', 'bert-ls']:
+        # evaluate
+        print("Evaluating predictions from ", model_args.model_name_or_path)
+        evaluator = Evaluator(model_args, model_args.model_name_or_path, data_args.data_path, metrics='hard', print_results=True, aspect='prof')
+        metrics = evaluator.evaluate()
+        print("Precision: ", metrics[0])
+        print("Recall: ", metrics[1])
+        print("F1: ", metrics[2])
+    else:
+        local_rank = training_args.local_rank
 
-    orig_ctx_len = getattr(config, "max_position_embeddings", None)
-    if orig_ctx_len and training_args.model_max_length > orig_ctx_len:
-        scaling_factor = float(math.ceil(training_args.model_max_length / orig_ctx_len))
-        config.rope_scaling = {"type": "linear", "factor": scaling_factor}
-    config.use_cache = True
+        # Set RoPE scaling factor
+        config = transformers.AutoConfig.from_pretrained(
+            model_args.model_name_or_path,
+            cache_dir=training_args.cache_dir,
+            trust_remote_code=model_args.trust_remote_code,
+        )
 
-    # Load model and tokenizer
-    model = transformers.AutoModelForCausalLM.from_pretrained(
-        model_args.model_name_or_path,
-        config=config,
-        cache_dir=training_args.cache_dir,
-        trust_remote_code=model_args.trust_remote_code,
-    )
+        orig_ctx_len = getattr(config, "max_position_embeddings", None)
+        if orig_ctx_len and training_args.model_max_length > orig_ctx_len:
+            scaling_factor = float(math.ceil(training_args.model_max_length / orig_ctx_len))
+            config.rope_scaling = {"type": "linear", "factor": scaling_factor}
+        config.use_cache = True
 
-    device = torch.device('cuda:0')  
-    model.to(device)
-    model = model.bfloat16()
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        model_args.model_name_or_path,
-        cache_dir=training_args.cache_dir,
-        model_max_length=training_args.model_max_length,
-        padding_side='left',
-        use_fast=False,
-        trust_remote_code=model_args.trust_remote_code,
-    )
+        # Load model and tokenizer
+        if 'flant5' in model_args.model_name_or_path:
+            model = transformers.AutoModelForSeq2SeqLM.from_pretrained(
+                model_args.model_name_or_path,
+                cache_dir=training_args.cache_dir,
+            )
+            tokenizer = transformers.T5Tokenizer.from_pretrained(
+                model_args.model_name_or_path,
+                cache_dir=training_args.cache_dir,
+                model_max_length=training_args.model_max_length,
+                padding_side="right",
+                use_fast=False,
+            )
+        else:
+            model = transformers.AutoModelForCausalLM.from_pretrained(
+                model_args.model_name_or_path,
+                config=config,
+                cache_dir=training_args.cache_dir,
+                trust_remote_code=model_args.trust_remote_code,
+            )
+            tokenizer = transformers.AutoTokenizer.from_pretrained(
+                model_args.model_name_or_path,
+                cache_dir=training_args.cache_dir,
+                model_max_length=training_args.model_max_length,
+                padding_side='left',
+                use_fast=False,
+                trust_remote_code=model_args.trust_remote_code,
+            )
 
-    # predict on single input
-    # target_word = "obligatory"
-    # sentence = "Even though it was an **obligatory** experience, I could take part in a community program"
-    # inputs = (target_word, sentence)
+        device = torch.device('cuda:0')  
+        model.to(device)
+        model = model.bfloat16()
 
-    # evaluator = Evaluator(training_args, model, tokenizer, None)
-    # generated_texts = evaluator.predict_single_turn(inputs)
-    # print(generated_texts)
+        # predict on single input
+        # target_word = "obligatory"
+        # sentence = "Even though it was an **obligatory** experience, I could take part in a community program"
+        # inputs = (target_word, sentence)
 
-    # load evaluation data
-    # data_module = make_test_data_module(tokenizer, data_args)
+        # evaluator = Evaluator(training_args, model, tokenizer, None)
+        # generated_texts = evaluator.predict_single_turn(inputs)
+        # print(generated_texts)
 
-    # evaluate
-    print("Evaluating...")
-    evaluator = Evaluator(training_args, model, tokenizer, data_args.data_path, metrics='hard', print_results=True, aspect='prof')
-    metrics = evaluator.evaluate()
-    print("Precision: ", metrics[0])
-    print("Recall: ", metrics[1])
-    print("F1: ", metrics[2])
+        # load evaluation data
+        # data_module = make_test_data_module(tokenizer, data_args)
+
+        # evaluate
+        print("Evaluating...")
+        evaluator = Evaluator(model_args, model, data_args.data_path, tokenizer, metrics='hard', print_results=True, aspect='prof')
+        metrics = evaluator.evaluate()
+        print("Precision: ", metrics[0])
+        print("Recall: ", metrics[1])
+        print("F1: ", metrics[2])
