@@ -64,7 +64,7 @@ def format_test_prompt(target_word, sentence):
 
 
 class Evaluator(object):
-    def __init__(self, args, model, eval_dataset, tokenizer=None, metrics='hard', print_results=False, aspect='acc', topk=10):
+    def __init__(self, args, model, eval_dataset, tokenizer=None, evaluate_all_metrics=False, metrics='hard', print_results=False, aspect='acc', topk=10):
         """ Initialize the Evaluator. 
         Args:
             args: TrainingArguments
@@ -79,6 +79,7 @@ class Evaluator(object):
         self.args = args
         self.model = model
         self.tokenizer = tokenizer
+        self.evaluate_all_metrics = evaluate_all_metrics
         self.eval_dataset = eval_dataset
         self.metrics = metrics
         self.print_results = print_results
@@ -118,49 +119,6 @@ class Evaluator(object):
 
         return precision, recall, f1
     
-        # total_precision = 0
-        # total_recall = 0
-        # f1_scores = []
-
-        # for label, pred in zip(labels, preds):
-        #     pred = pred[:self.topk]
-        #     num_acceptable = len(set(label).intersection(set(pred)))
-        #     try:
-        #         precision = num_acceptable / len(set(pred))
-        #     except Exception as e:
-        #         print(e)
-        #         print("Pred: ", pred)
-        #         print("Label: ", label)
-        #         precision = 0
-
-        #     recall = num_acceptable / min(self.topk, len(set(label)))
-
-        #     # Calculate F1 score only if both precision and recall are not zero
-        #     if precision + recall > 0:
-        #         f1 = 2 * precision * recall / (precision + recall)
-        #         f1_scores.append(f1)
-        #     else:
-        #         f1_scores.append(0)
-
-        #     total_precision += precision
-        #     total_recall += recall
-
-        #     # f1 is the harmonic mean of precision and recall
-        #     # try:
-        #     #     f1 += 2 * (precision * recall) / (precision + recall)
-        #     # except Exception as e:
-        #     #     print(e)
-        #     #     print("Pred: ", pred)
-        #     #     print("Label: ", label)
-        #     #     f1 += 0
-
-        # # average over all the labels
-        # avg_precision = total_precision / len(labels)
-        # avg_recall = total_recall / len(labels)
-        # avg_f1 = sum(f1_scores) / len(f1_scores) if f1_scores else 0
-
-        # return avg_precision, avg_recall, avg_f1
-    
     def print_prediction_results(self, preds):
         """ Print the prediction results. """
         eval_df = pd.read_csv(self.eval_dataset, index_col=False)
@@ -181,14 +139,54 @@ class Evaluator(object):
                 f.write("--------------------------------------------------" + "\n")
                 f.write("\n")
 
+    def evaluate_soft_metrics(self, labels, preds):
+        # get the lemma of the predicted substitutes and gold substitutes
+            model_preds_lemma = []
+            gold_labels_lemma = []
+            
+            for pred in preds:
+                pred_lemma = []
+                for p in pred:
+                    doc = nlp(p)
+                    pred_lemma.append(doc[0].lemma_)
+                model_preds_lemma.append(pred_lemma)
+
+            for gold in labels:
+                gold_lemma = []
+                for g in gold:
+                    doc = nlp(g)
+                    gold_lemma.append(doc[0].lemma_)
+                gold_labels_lemma.append(gold_lemma)
+
+
+            precision, recall, f1 = self.calculate_metrics(gold_labels_lemma, model_preds_lemma)
+
+            return precision, recall, f1
+    
+    def evaluate_hard_metrics(self, labels, preds):
+        return self.calculate_metrics(labels, preds)
+
+    def get_gold_labels(self):
+        """ Get the gold labels from the evaluation dataset. """
+        eval_df = pd.read_csv(self.eval_dataset, index_col=False)
+        gold_labels = []
+
+        for i in tqdm(range(len(eval_df))):
+            row = eval_df.iloc[i]
+            if self.aspect == 'acc':
+                gold_labels.append(ast.literal_eval(row["acc_subs"]))
+            elif self.aspect == 'prof':
+                gold_labels.append(ast.literal_eval(row["prof_acc_subs"]))
+        
+        return gold_labels
+
     def evaluate(self):
         """ Evaluate the model on the given dataset. """
         model_preds = []
-        gold_labels = []
 
         eval_df = pd.read_csv(self.eval_dataset, index_col=False)
         
-        if self.model in ['gpt-4', 'gpt-3.5-turbo-1106', 'gpt-3.5-turbo', 'para-ls', 'bert-ls']:
+        if self.model in ['gpt-4', 'gpt-4-32', 'gpt-3.5-turbo-1106', 'gpt-3.5-turbo-1106-32', 'gpt-3.5-turbo', 'para-ls', 'bert-ls']:
             pred_df = pd.read_csv("outputs/"+self.model+'_'+self.eval_dataset.split('/')[-1], index_col=False)
 
             for i in tqdm(range(len(eval_df))):
@@ -197,10 +195,10 @@ class Evaluator(object):
 
                 pred = pred_row['Substitutes'].split(", ")
                 model_preds.append(pred)
-                if self.aspect == 'acc':
-                    gold_labels.append(ast.literal_eval(gold_row["acc_subs"]))
-                elif self.aspect == 'prof':
-                    gold_labels.append(ast.literal_eval(gold_row["prof_acc_subs"]))
+                # if self.aspect == 'acc':
+                #     gold_labels.append(ast.literal_eval(gold_row["acc_subs"]))
+                # elif self.aspect == 'prof':
+                #     gold_labels.append(ast.literal_eval(gold_row["prof_acc_subs"]))
         else:
             # eval mode
             self.model.eval()
@@ -239,42 +237,66 @@ class Evaluator(object):
                         print("Generated text: ", generated_texts)
                         pred = []
                     model_preds.append(pred)
-                    if self.aspect == 'acc':
-                        gold_labels.append(ast.literal_eval(row["acc_subs"]))
-                    elif self.aspect == 'prof':
-                        gold_labels.append(ast.literal_eval(row["prof_acc_subs"]))
-
+                    # if self.aspect == 'acc':
+                    #     gold_labels.append(ast.literal_eval(row["acc_subs"]))
+                    # elif self.aspect == 'prof':
+                    #     gold_labels.append(ast.literal_eval(row["prof_acc_subs"]))
+        
         # print the results if print_results is True
         if self.print_results:
             self.print_prediction_results(model_preds)
 
-        # Compute precision, recall, and F1
-        if self.metrics == 'soft':
-            # get the lemma of the predicted substitutes and gold substitutes
-            model_preds_lemma = []
-            gold_labels_lemma = []
+        if self.evaluate_all_metrics:
+            # evaluate all metrics
+            metrics_ = ["soft", "hard"]
+            aspects_ = ["acc", "prof"]
+
+            for metric in metrics_:
+                for aspect in aspects_:
+                    self.metrics = metric
+                    self.aspect = aspect
+                    gold_labels = self.get_gold_labels()
+                    assert len(gold_labels) == len(model_preds)
+                    if metric == 'soft':
+                        precision, recall, f1 = self.evaluate_soft_metrics(gold_labels, model_preds)
+                    elif metric == 'hard':
+                        precision, recall, f1 = self.evaluate_hard_metrics(gold_labels, model_preds)
+                    print("Metric: ", metric, "Aspect: ", aspect)
+                    print("Precision: ", precision)
+                    print("Recall: ", recall)
+                    print("F1: ", f1)
+                    print("--------------------------------------------------")
+
+        else:
+        # Compute precision, recall, and F1 seperately for each metrics
+            gold_labels = self.get_gold_labels()
+            if self.metrics == 'soft':
+                return self.evaluate_soft_metrics(gold_labels, model_preds)
+                # get the lemma of the predicted substitutes and gold substitutes
+                # model_preds_lemma = []
+                # gold_labels_lemma = []
+                
+                # for pred in model_preds:
+                #     pred_lemma = []
+                #     for p in pred:
+                #         doc = nlp(p)
+                #         pred_lemma.append(doc[0].lemma_)
+                #     model_preds_lemma.append(pred_lemma)
+
+                # for gold in gold_labels:
+                #     gold_lemma = []
+                #     for g in gold:
+                #         doc = nlp(g)
+                #         gold_lemma.append(doc[0].lemma_)
+                #     gold_labels_lemma.append(gold_lemma)
+
+
+                # precision, recall, f1 = self.calculate_metrics(gold_labels_lemma, model_preds_lemma)
+
+                # return precision, recall, f1
             
-            for pred in model_preds:
-                pred_lemma = []
-                for p in pred:
-                    doc = nlp(p)
-                    pred_lemma.append(doc[0].lemma_)
-                model_preds_lemma.append(pred_lemma)
-
-            for gold in gold_labels:
-                gold_lemma = []
-                for g in gold:
-                    doc = nlp(g)
-                    gold_lemma.append(doc[0].lemma_)
-                gold_labels_lemma.append(gold_lemma)
-
-
-            precision, recall, f1 = self.calculate_metrics(gold_labels_lemma, model_preds_lemma)
-
-            return precision, recall, f1
-        
-        elif self.metrics == 'hard':
-            return  self.calculate_metrics(gold_labels, model_preds)
+            elif self.metrics == 'hard':
+                return  self.calculate_metrics(gold_labels, model_preds)
 
     def predict_single_turn(self, 
                              inputs: Tuple[str, str]):
@@ -315,14 +337,14 @@ if __name__ == "__main__":
     )
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
-    if model_args.model_name_or_path in ['gpt-4', 'gpt-3.5-turbo-1106', 'gpt-3.5-turbo', 'para-ls', 'bert-ls']:
+    if model_args.model_name_or_path in ['gpt-4', 'gpt-4-32', 'gpt-3.5-turbo-1106', 'gpt-3.5-turbo-1106-32', 'gpt-3.5-turbo', 'para-ls', 'bert-ls']:
         # evaluate
         print("Evaluating predictions from ", model_args.model_name_or_path)
-        evaluator = Evaluator(model_args, model_args.model_name_or_path, data_args.data_path, metrics='hard', print_results=True, aspect='prof')
+        evaluator = Evaluator(model_args, model_args.model_name_or_path, data_args.data_path, evaluate_all_metrics=True, print_results=True)
         metrics = evaluator.evaluate()
-        print("Precision: ", metrics[0])
-        print("Recall: ", metrics[1])
-        print("F1: ", metrics[2])
+        # print("Precision: ", metrics[0])
+        # print("Recall: ", metrics[1])
+        # print("F1: ", metrics[2])
     else:
         local_rank = training_args.local_rank
 
@@ -386,8 +408,8 @@ if __name__ == "__main__":
 
         # evaluate
         print("Evaluating...")
-        evaluator = Evaluator(model_args, model, data_args.data_path, tokenizer, metrics='hard', print_results=True, aspect='prof')
+        evaluator = Evaluator(model_args, model, data_args.data_path, tokenizer, evaluate_all_metrics=True, print_results=True)
         metrics = evaluator.evaluate()
-        print("Precision: ", metrics[0])
-        print("Recall: ", metrics[1])
-        print("F1: ", metrics[2])
+        # print("Precision: ", metrics[0])
+        # print("Recall: ", metrics[1])
+        # print("F1: ", metrics[2])
