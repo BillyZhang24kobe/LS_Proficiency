@@ -33,7 +33,10 @@ In general, this repository offers:
 - [Questions](#questions)
 
 ## Downloading the ProLex benchmark
+We prepare both the dev and test sets for ProLex ✍️. They can be downloaded from the following links:
 
+- [ProLex development set]()
+- 
 
 ## Environment settings
 
