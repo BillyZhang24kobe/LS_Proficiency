@@ -1,5 +1,5 @@
 # ProLex ✍️: A Benchmark for Language Proficiency-oriented Lexical Substitution
-<img src="assets/ProLex_figures.png" width="100%">
+<img src="figures/ProLex_figures.png" width="100%">
 
 This is the repository for ProLex, a novel benchmark that evaluates system performances on language proficiency-oriented lexical substitution, a new task that proposes substitutes that are not only contextually suitable but also demonstrate advanced-level proficiency. For example:
 
@@ -66,11 +66,31 @@ None: phrases
 ```
 
 ## Environment settings
+### Conda environment installation
+```
+git clone git@github.com:BillyZhang24kobe/LS_Proficiency.git
+cd LS_Proficiency
+conda env create -f environment.yml
+conda activate LS_prof
+```
 
 ## Instruction finetuning pipelines
+### Synthesize task-specific training data
+### Instruction finetuning recipes
 
 ## Evaluating on ProLex
 
 ## Citation
+We highly appriciate your interests in our work. If you find ProLex ✍️  helpful, please consider citing our paper in your work:
+
+```
+@article{zhang2024prolex,
+  title={ProLex: A Benchmark for Language Proficiency-oriented Lexical Substitution},
+  author={Zhang, Xuanming and Chen, Zixun and Yu, Zhou},
+  journal={arXiv preprint arXiv:2401.11356},
+  year={2024}
+}
+```
 
 ## Questions
+Please reach out to us at billyzhang@cs.columbia.edu if you have any questions in using our benchmark. If you find an issue in either the source code or dataset, please feel free to create a pull request and make contribution to the benchmark!

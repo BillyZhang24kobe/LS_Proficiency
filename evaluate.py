@@ -1,23 +1,14 @@
 from dataclasses import dataclass, field
-import json
 import math
-import pathlib
-from typing import Dict, Optional, Sequence, Tuple
+from typing import Optional, Tuple
 
-import numpy as np
 import torch
-from torch.utils.data import Dataset
 import transformers
-from transformers import Trainer
-from transformers.trainer_pt_utils import LabelSmoother
 
-from fastchat.conversation import SeparatorStyle
-from fastchat.model.model_adapter import get_conversation_template
 import pandas as pd
 from dataset import *
 import ast
 import spacy
-import os
 from tqdm import tqdm
 
 # global variables
@@ -47,16 +38,16 @@ class DataArguments:
     lazy_preprocess: bool = False
 
 
-@dataclass
-class TrainingArguments(transformers.TrainingArguments):
-    cache_dir: Optional[str] = field(default=None)
-    optim: str = field(default="adamw_torch")
-    model_max_length: int = field(
-        default=512,
-        metadata={
-            "help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."
-        },
-    )
+# @dataclass
+# class TrainingArguments(transformers.TrainingArguments):
+#     cache_dir: Optional[str] = field(default=None)
+#     optim: str = field(default="adamw_torch")
+#     model_max_length: int = field(
+#         default=512,
+#         metadata={
+#             "help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."
+#         },
+#     )
 
 
 def format_test_prompt(target_word, sentence):
@@ -195,10 +186,6 @@ class Evaluator(object):
 
                 pred = pred_row['Substitutes'].split(", ")
                 model_preds.append(pred)
-                # if self.aspect == 'acc':
-                #     gold_labels.append(ast.literal_eval(gold_row["acc_subs"]))
-                # elif self.aspect == 'prof':
-                #     gold_labels.append(ast.literal_eval(gold_row["prof_acc_subs"]))
         else:
             # eval mode
             self.model.eval()
@@ -215,8 +202,7 @@ class Evaluator(object):
                     system_input = format_test_prompt(target_word, sentence)
 
                     input_ids = tokenizer.encode(system_input, return_tensors='pt', add_special_tokens=True)
-                    input_ids = input_ids.cuda()  # TODO: change to a device
-                    # print("System input length: ", int(input_ids.ne(self.tokenizer.pad_token_id).sum()))
+                    input_ids = input_ids.cuda()
 
                     # Generate the candidates.
                     generated_ids = self.model.generate(
@@ -237,10 +223,6 @@ class Evaluator(object):
                         print("Generated text: ", generated_texts)
                         pred = []
                     model_preds.append(pred)
-                    # if self.aspect == 'acc':
-                    #     gold_labels.append(ast.literal_eval(row["acc_subs"]))
-                    # elif self.aspect == 'prof':
-                    #     gold_labels.append(ast.literal_eval(row["prof_acc_subs"]))
         
         # print the results if print_results is True
         if self.print_results:
@@ -272,28 +254,6 @@ class Evaluator(object):
             gold_labels = self.get_gold_labels()
             if self.metrics == 'soft':
                 return self.evaluate_soft_metrics(gold_labels, model_preds)
-                # get the lemma of the predicted substitutes and gold substitutes
-                # model_preds_lemma = []
-                # gold_labels_lemma = []
-                
-                # for pred in model_preds:
-                #     pred_lemma = []
-                #     for p in pred:
-                #         doc = nlp(p)
-                #         pred_lemma.append(doc[0].lemma_)
-                #     model_preds_lemma.append(pred_lemma)
-
-                # for gold in gold_labels:
-                #     gold_lemma = []
-                #     for g in gold:
-                #         doc = nlp(g)
-                #         gold_lemma.append(doc[0].lemma_)
-                #     gold_labels_lemma.append(gold_lemma)
-
-
-                # precision, recall, f1 = self.calculate_metrics(gold_labels_lemma, model_preds_lemma)
-
-                # return precision, recall, f1
             
             elif self.metrics == 'hard':
                 return  self.calculate_metrics(gold_labels, model_preds)
@@ -319,7 +279,7 @@ class Evaluator(object):
             generated_ids = self.model.generate(
                 input_ids,
                 max_length=self.tokenizer.model_max_length,
-                temperature=0.2,)
+                temperature=0.2)
             
         # Decode the candidates.
         generated_texts = self.tokenizer.batch_decode(
@@ -333,66 +293,45 @@ if __name__ == "__main__":
 
     # load model
     parser = transformers.HfArgumentParser(
-        (ModelArguments, DataArguments, TrainingArguments)
+        (ModelArguments, DataArguments)
     )
-    model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+    model_args, data_args = parser.parse_args_into_dataclasses()
 
     if model_args.model_name_or_path in ['gpt-4', 'gpt-4-32', 'gpt-3.5-turbo-1106', 'gpt-3.5-turbo-1106-32', 'gpt-3.5-turbo', 'para-ls', 'bert-ls']:
         # evaluate
         print("Evaluating predictions from ", model_args.model_name_or_path)
         evaluator = Evaluator(model_args, model_args.model_name_or_path, data_args.data_path, evaluate_all_metrics=True, print_results=True)
         metrics = evaluator.evaluate()
-        # print("Precision: ", metrics[0])
-        # print("Recall: ", metrics[1])
-        # print("F1: ", metrics[2])
     else:
-        local_rank = training_args.local_rank
 
         # Set RoPE scaling factor
         config = transformers.AutoConfig.from_pretrained(
             model_args.model_name_or_path,
-            cache_dir=training_args.cache_dir,
             trust_remote_code=model_args.trust_remote_code,
         )
 
-        orig_ctx_len = getattr(config, "max_position_embeddings", None)
-        if orig_ctx_len and training_args.model_max_length > orig_ctx_len:
-            scaling_factor = float(math.ceil(training_args.model_max_length / orig_ctx_len))
-            config.rope_scaling = {"type": "linear", "factor": scaling_factor}
-        config.use_cache = True
-
         # Load model and tokenizer
-        if 'flant5' in model_args.model_name_or_path:
-            model = transformers.AutoModelForSeq2SeqLM.from_pretrained(
-                model_args.model_name_or_path,
-                cache_dir=training_args.cache_dir,
-            )
-            tokenizer = transformers.T5Tokenizer.from_pretrained(
-                model_args.model_name_or_path,
-                cache_dir=training_args.cache_dir,
-                model_max_length=training_args.model_max_length,
-                padding_side="right",
-                use_fast=False,
-            )
-        else:
-            model = transformers.AutoModelForCausalLM.from_pretrained(
-                model_args.model_name_or_path,
-                config=config,
-                cache_dir=training_args.cache_dir,
-                trust_remote_code=model_args.trust_remote_code,
-            )
-            tokenizer = transformers.AutoTokenizer.from_pretrained(
-                model_args.model_name_or_path,
-                cache_dir=training_args.cache_dir,
-                model_max_length=training_args.model_max_length,
-                padding_side='left',
-                use_fast=False,
-                trust_remote_code=model_args.trust_remote_code,
-            )
+        model = transformers.AutoModelForCausalLM.from_pretrained(
+            model_args.model_name_or_path,
+            config=config,
+            trust_remote_code=model_args.trust_remote_code,
+        )
+        tokenizer = transformers.AutoTokenizer.from_pretrained(
+            model_args.model_name_or_path,
+            padding_side='left',
+            use_fast=False,
+            trust_remote_code=model_args.trust_remote_code,
+        )
 
         device = torch.device('cuda:0')  
         model.to(device)
         model = model.bfloat16()
+
+        # evaluate
+        print("Evaluating...")
+        evaluator = Evaluator(model_args, model, data_args.data_path, tokenizer, evaluate_all_metrics=True, print_results=True)
+        metrics = evaluator.evaluate()
+
 
         # predict on single input
         # target_word = "obligatory"
@@ -402,14 +341,3 @@ if __name__ == "__main__":
         # evaluator = Evaluator(training_args, model, tokenizer, None)
         # generated_texts = evaluator.predict_single_turn(inputs)
         # print(generated_texts)
-
-        # load evaluation data
-        # data_module = make_test_data_module(tokenizer, data_args)
-
-        # evaluate
-        print("Evaluating...")
-        evaluator = Evaluator(model_args, model, data_args.data_path, tokenizer, evaluate_all_metrics=True, print_results=True)
-        metrics = evaluator.evaluate()
-        # print("Precision: ", metrics[0])
-        # print("Recall: ", metrics[1])
-        # print("F1: ", metrics[2])
