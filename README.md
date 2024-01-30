@@ -27,7 +27,7 @@ In general, this repository offers:
 ## Table of Contents
 - [Downloading the ProLex benchmark](#downloading-the-prolex-benchmark)
 - [Environment settings](#environment-settings)
-- [Instruction finetuning pipelines](#instruction-finetuning-pipelines)
+- [Instruction-tuning pipelines](#instruction-tuning-pipelines)
 - [Evaluating on ProLex](#evaluating-on-prolex)
 - [Citation](#citation)
 - [Questions](#questions)
@@ -74,9 +74,41 @@ conda env create -f environment.yml
 conda activate LS_prof
 ```
 
-## Instruction finetuning pipelines
+## Instruction-tuning pipelines
+We provide scripts to synthesize task-specific training data with GPT-4, and then finetune `Vicuna-1.5` and `Llama 2` on top the synthetic data. Besides, according to CEFR, we also filter the dataset from [Swords](https://github.com/p-lambda/swords), which can also be used for training.
+
 ### Synthesize task-specific training data
-### Instruction finetuning recipes
+
+#### With GPT-4
+Get the synthetic data from GPT-4 with the following command. Note that you should create an `api_secrets.py` file in the root directory of the project, and input your OpenAI API credentials to the file before running the script.
+```
+python synthesize_train_gpt.py
+```
+Specifically, the script takes as an input the raw data from `data/raw/toefl_1500.csv`, which contains the sentences randomly selected from the `TOEFL-11` corpus. The output is store in `data/train/synthetic_gpt4.csv`.
+
+
+#### Modified dataset from Swords
+We take the dev and test set from [Swords](https://github.com/p-lambda/swords) and retrieve the CEFR labels of all target words and their corresponding acceptable substitutes (i.e. score greater than 50%). We remove the substitutes that demonstrate lower proficiency than the target words. The modified dataset can be downloaded [here](https://github.com/BillyZhang24kobe/LS_Proficiency/blob/main/data/train/swords_filtered.csv).
+
+### Instruction-tuning recipes
+
+### Model Weights
+#### Vicuna-1.5 Weights
+| Size | Description | Hugging Face Repo |
+| ---  | --- | --- |
+| 7B   | `python3 -m fastchat.serve.cli --model-path lmsys/vicuna-7b-v1.5`  | [lmsys/vicuna-7b-v1.5](https://huggingface.co/lmsys/vicuna-7b-v1.5)   |
+| 7B-D<sub>LS</sub>   | `python3 -m fastchat.serve.cli --model-path lmsys/vicuna-7b-v1.5-16k`  | [lmsys/vicuna-7b-v1.5-16k](https://huggingface.co/lmsys/vicuna-7b-v1.5-16k)   |
+| 13B  | `python3 -m fastchat.serve.cli --model-path lmsys/vicuna-13b-v1.5` | [lmsys/vicuna-13b-v1.5](https://huggingface.co/lmsys/vicuna-13b-v1.5) |
+| 13B-D<sub>LS</sub> | `python3 -m fastchat.serve.cli --model-path lmsys/vicuna-13b-v1.5-16k` | [lmsys/vicuna-13b-v1.5-16k](https://huggingface.co/lmsys/vicuna-13b-v1.5-16k) |
+
+#### Llama-2 Weights
+| Size | Description | Hugging Face Repo |
+| ---  | --- | --- |
+| 7B   | `python3 -m fastchat.serve.cli --model-path lmsys/vicuna-7b-v1.5`  | [lmsys/vicuna-7b-v1.5](https://huggingface.co/lmsys/vicuna-7b-v1.5)   |
+| 7B-D<sub>LS</sub>   | `python3 -m fastchat.serve.cli --model-path lmsys/vicuna-7b-v1.5-16k`  | [lmsys/vicuna-7b-v1.5-16k](https://huggingface.co/lmsys/vicuna-7b-v1.5-16k)   |
+| 13B  | `python3 -m fastchat.serve.cli --model-path lmsys/vicuna-13b-v1.5` | [lmsys/vicuna-13b-v1.5](https://huggingface.co/lmsys/vicuna-13b-v1.5) |
+| 13B-D<sub>LS</sub> | `python3 -m fastchat.serve.cli --model-path lmsys/vicuna-13b-v1.5-16k` | [lmsys/vicuna-13b-v1.5-16k](https://huggingface.co/lmsys/vicuna-13b-v1.5-16k) |
+
 
 ## Evaluating on ProLex
 
