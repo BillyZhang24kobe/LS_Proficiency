@@ -35,3 +35,6 @@ build
 
 # api secrets
 api_secrets.py
+
+# other
+.nfs00000000bd3b140100000e06 
