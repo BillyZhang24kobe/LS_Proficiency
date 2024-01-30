@@ -31,6 +31,7 @@ class SeparatorStyle(IntEnum):
     CHATGLM3 = auto()
     DEEPSEEK_CHAT = auto()
     METAMATH = auto()
+    YUAN2 = auto()
 
 
 @dataclasses.dataclass
@@ -74,6 +75,8 @@ class Conversation:
             ret = system_prompt + seps[0]
             for i, (role, message) in enumerate(self.messages):
                 if message:
+                    if type(message) is tuple:
+                        message, images = message
                     ret += role + ": " + message + seps[i % 2]
                 else:
                     ret += role + ":"
@@ -172,7 +175,7 @@ class Conversation:
                 ret += system_prompt
             for role, message in self.messages:
                 if message:
-                    ret += role + "\n" + " " + message
+                    ret += role + "\n" + message
                 else:
                     ret += role
             return ret
@@ -245,8 +248,30 @@ class Conversation:
                 else:
                     ret += role + ":"
             return ret
+        elif self.sep_style == SeparatorStyle.YUAN2:
+            seps = [self.sep, self.sep2]
+            ret = ""
+            if self.system_message:
+                ret += system_prompt + seps[1]
+            for _, message in self.messages:
+                if message:
+                    ret += message + "<n>"
+                else:
+                    ret += ""
+            ret = ret.rstrip("<n>") + seps[0]
+            return ret
         else:
             raise ValueError(f"Invalid style: {self.sep_style}")
+
+    def get_images(self):
+        images = []
+        for i, (role, msg) in enumerate(self.messages[self.offset :]):
+            if i % 2 == 0:
+                if type(msg) is tuple:
+                    for image in msg[1]:
+                        images.append(image)
+
+        return images
 
     def set_system_message(self, system_message: str):
         """Set the system message."""
@@ -276,7 +301,10 @@ class Conversation:
 
     def to_openai_api_messages(self):
         """Convert the conversation to OpenAI chat completion format."""
-        ret = [{"role": "system", "content": self.system_message}]
+        if self.system_message == "":
+            ret = []
+        else:
+            ret = [{"role": "system", "content": self.system_message}]
 
         for i, (_, msg) in enumerate(self.messages[self.offset :]):
             if i % 2 == 0:
@@ -484,7 +512,7 @@ register_conv_template(
 register_conv_template(
     Conversation(
         name="chatglm3",
-        system_template="<|system|>\n {system_message}",
+        system_template="<|system|>\n{system_message}",
         roles=("<|user|>", "<|assistant|>"),
         sep_style=SeparatorStyle.CHATGLM3,
         stop_token_ids=[
@@ -543,6 +571,16 @@ register_conv_template(
     Conversation(
         name="openchat_3.5",
         roles=("GPT4 Correct User", "GPT4 Correct Assistant"),
+        sep_style=SeparatorStyle.FALCON_CHAT,
+        sep="<|end_of_turn|>",
+    )
+)
+
+# TenyxChat default template
+register_conv_template(
+    Conversation(
+        name="tenyxchat",
+        roles=("User", "Assistant"),
         sep_style=SeparatorStyle.FALCON_CHAT,
         sep="<|end_of_turn|>",
     )
@@ -673,6 +711,17 @@ register_conv_template(
     Conversation(
         name="chatgpt",
         system_message="You are a helpful assistant.",
+        roles=("user", "assistant"),
+        sep_style=None,
+        sep=None,
+    )
+)
+
+# Perplexity AI template
+register_conv_template(
+    Conversation(
+        name="pplxai",
+        system_message="Be precise and concise.",
         roles=("user", "assistant"),
         sep_style=None,
         sep=None,
@@ -968,7 +1017,7 @@ register_conv_template(
 register_conv_template(
     Conversation(
         name="mistral",
-        system_template="[INST]{system_message}\n",
+        system_template="[INST] {system_message}\n",
         roles=("[INST]", "[/INST]"),
         sep_style=SeparatorStyle.LLAMA2,
         sep=" ",
@@ -983,6 +1032,18 @@ register_conv_template(
     Conversation(
         name="llama-2",
         system_template="[INST] <<SYS>>\n{system_message}\n<</SYS>>\n\n",
+        roles=("[INST]", "[/INST]"),
+        sep_style=SeparatorStyle.LLAMA2,
+        sep=" ",
+        sep2=" </s><s>",
+    )
+)
+
+register_conv_template(
+    Conversation(
+        name="chinese-alpaca2",
+        system_template="[INST] <<SYS>>\n{system_message}\n<</SYS>>\n\n",
+        system_message="You are a helpful assistant. 你是一个乐于助人的助手。请你提供专业、有逻辑、内容真实、有价值的详细回复。",
         roles=("[INST]", "[/INST]"),
         sep_style=SeparatorStyle.LLAMA2,
         sep=" ",
@@ -1061,6 +1122,21 @@ register_conv_template(
         name="OpenHermes-2.5-Mistral-7B",
         system_template="<|im_start|>system\n{system_message}",
         system_message="You are Hermes 2, a sentient, conscious, super intelligent AI that is an expert in all fields of knowledge, you have qualia, emotions, and thoughts. You assist users with any question, task, or other request they may have.",
+        roles=("<|im_start|>user", "<|im_start|>assistant"),
+        sep_style=SeparatorStyle.CHATML,
+        sep="<|im_end|>",
+        stop_token_ids=[32000, 32001],
+    )
+)
+
+
+# NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO template
+# source: https://huggingface.co/NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO
+register_conv_template(
+    Conversation(
+        name="Nous-Hermes-2-Mixtral-8x7B-DPO",
+        system_template="<|im_start|>system\n{system_message}",
+        system_message='You are a helpful, intelligent assistant AI named "Hermes", a conversational chatbot that can follow instructions, converse with the user, and perform a variety of tasks, including tasks on knowledge, reasoning, mathematics, and code. Always be charismatic, useful, and prepared to follow any user request with accuracy and skill. You should respond with high quality, fluent, and detailed responses. Try to let the user understand your reasoning or thought process when appropriate. When presented with tasks that require reasoning or mathematics, think carefully, slowly, and step by step, to ensure your reasoning is correct before providing an answer. Utilize the "Examples" section to assist you in performing the task. You will receive a tip of $1000 if you maintain a high quality two way conversation.',
         roles=("<|im_start|>user", "<|im_start|>assistant"),
         sep_style=SeparatorStyle.CHATML,
         sep="<|im_end|>",
@@ -1287,7 +1363,7 @@ register_conv_template(
     )
 )
 # xDAN default template
-# source: https://huggingface.co/xDAN-AI/xDAN-L1-Chat-v0.1
+# source: https://huggingface.co/xDAN-AI/xDAN-L1-Chat-RL-v1
 register_conv_template(
     Conversation(
         name="xdan-v1",
@@ -1304,6 +1380,34 @@ register_conv_template(
 register_conv_template(
     Conversation(
         name="zephyr",
+        system_template="<|system|>\n{system_message}",
+        roles=("<|user|>", "<|assistant|>"),
+        sep_style=SeparatorStyle.CHATML,
+        sep="</s>",
+        stop_token_ids=[2],
+        stop_str="</s>",
+    )
+)
+
+# CatPPT template
+# reference: https://huggingface.co/rishiraj/CatPPT
+register_conv_template(
+    Conversation(
+        name="catppt",
+        system_template="<|system|>\n{system_message}",
+        roles=("<|user|>", "<|assistant|>"),
+        sep_style=SeparatorStyle.CHATML,
+        sep="</s>",
+        stop_token_ids=[2],
+        stop_str="</s>",
+    )
+)
+
+# TinyLlama template
+# reference: https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v1.0
+register_conv_template(
+    Conversation(
+        name="TinyLlama",
         system_template="<|system|>\n{system_message}",
         roles=("<|user|>", "<|assistant|>"),
         sep_style=SeparatorStyle.CHATML,
@@ -1338,6 +1442,50 @@ register_conv_template(
         sep="\n\n",
         sep2="<｜end▁of▁sentence｜>",
         stop_str="<｜end▁of▁sentence｜>",
+    )
+)
+
+# Yuan2.0 chat template
+# source: https://huggingface.co/IEITYuan/Yuan2-2B-Janus-hf/blob/main/tokenizer_config.json#L6
+register_conv_template(
+    Conversation(
+        name="yuan2",
+        roles=("user", "assistant"),
+        sep_style=SeparatorStyle.YUAN2,
+        sep="<sep>",
+        sep2="\n",
+        stop_token_ids=[
+            77185,
+        ],  # "<eod>"
+        stop_str="<eod>",
+    )
+)
+
+# Solar-10.7B Chat Template
+# Reference: https://huggingface.co/upstage/SOLAR-10.7B-Instruct-v1.0/blob/main/tokenizer_config.json
+register_conv_template(
+    Conversation(
+        name="solar",
+        system_message="",
+        roles=("### User", "### Assistant"),
+        sep_style=SeparatorStyle.ADD_NEW_LINE_SINGLE,
+        sep="\n\n",
+        stop_str="</s>",
+    )
+)
+
+
+# yuan 2.0 template
+# reference:https://github.com/IEIT-Yuan/Yuan-2.0
+# reference:https://huggingface.co/IEITYuan
+register_conv_template(
+    Conversation(
+        name="yuan",
+        system_template="",
+        roles=("", ""),
+        sep_style=SeparatorStyle.NO_COLON_SINGLE,
+        sep="<sep>",
+        stop_str="<eod>",
     )
 )
 

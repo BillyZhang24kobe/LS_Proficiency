@@ -1,7 +1,9 @@
 # ProLex ✍️: A Benchmark for Language Proficiency-oriented Lexical Substitution
 <img src="figures/ProLex_figures.png" width="100%">
 
+
 This is the repository for ProLex, a novel benchmark that evaluates system performances on language proficiency-oriented lexical substitution, a new task that proposes substitutes that are not only contextually suitable but also demonstrate advanced-level proficiency. For example:
+
 
 > **Target word** `w`: `promotion (B2)`
 >
@@ -100,6 +102,7 @@ We take the dev and test set from [Swords](https://github.com/p-lambda/swords) a
 | 7B-D<sub>LS</sub>   | `python3 -m fastchat.serve.cli --model-path lmsys/vicuna-7b-v1.5-16k`  | [lmsys/vicuna-7b-v1.5-16k](https://huggingface.co/lmsys/vicuna-7b-v1.5-16k)   |
 | 13B  | `python3 -m fastchat.serve.cli --model-path lmsys/vicuna-13b-v1.5` | [lmsys/vicuna-13b-v1.5](https://huggingface.co/lmsys/vicuna-13b-v1.5) |
 | 13B-D<sub>LS</sub> | `python3 -m fastchat.serve.cli --model-path lmsys/vicuna-13b-v1.5-16k` | [lmsys/vicuna-13b-v1.5-16k](https://huggingface.co/lmsys/vicuna-13b-v1.5-16k) |
+
 
 #### Llama-2 Weights
 | Size | Description | Hugging Face Repo |
