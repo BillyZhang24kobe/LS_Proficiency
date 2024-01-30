@@ -8,9 +8,11 @@ dist
 # Log
 *.log
 *.log.*
+logs/*
 *.json
 !playground/deepspeed_config_s2.json
 !playground/deepspeed_config_s3.json
+outputs/*
 
 # Editor
 .idea
@@ -20,12 +22,19 @@ dist
 .DS_Store
 wandb
 output
+output_*
 checkpoints_flant5_3b
 
 # Data
 *.pkl
-*.csv
 tests/state_of_the_union.txt
+*.txt
 
 # Build
 build
+
+# api secrets
+api_secrets.py
+
+# other
+.nfs00000000bd3b140100000e06 
