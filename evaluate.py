@@ -177,11 +177,11 @@ class Evaluator(object):
 
         eval_df = pd.read_csv(self.eval_dataset, index_col=False)
         
-        if self.model in ['gpt-4', 'gpt-4-32', 'gpt-3.5-turbo-1106', 'gpt-3.5-turbo-1106-32', 'gpt-3.5-turbo', 'para-ls', 'bert-ls']:
-            pred_df = pd.read_csv("outputs/"+self.model+'_'+self.eval_dataset.split('/')[-1], index_col=False)
+        if self.model.endswith(".csv"):
+        # self.model in ['gpt-4', 'gpt-4-32', 'gpt-3.5-turbo-1106', 'gpt-3.5-turbo-1106-32', 'gpt-3.5-turbo', 'para-ls', 'bert-ls']:
+            pred_df = pd.read_csv(self.model, index_col=False)
 
             for i in tqdm(range(len(eval_df))):
-                gold_row = eval_df.iloc[i]
                 pred_row = pred_df.iloc[i]
 
                 pred = pred_row['Substitutes'].split(", ")
@@ -297,7 +297,8 @@ if __name__ == "__main__":
     )
     model_args, data_args = parser.parse_args_into_dataclasses()
 
-    if model_args.model_name_or_path in ['gpt-4', 'gpt-4-32', 'gpt-3.5-turbo-1106', 'gpt-3.5-turbo-1106-32', 'gpt-3.5-turbo', 'para-ls', 'bert-ls']:
+    if model_args.model_name_or_path.endswith(".csv"):
+    # model_args.model_name_or_path in ['gpt-4', 'gpt-4-32', 'gpt-3.5-turbo-1106', 'gpt-3.5-turbo-1106-32', 'gpt-3.5-turbo', 'para-ls', 'bert-ls']:
         # evaluate
         print("Evaluating predictions from ", model_args.model_name_or_path)
         evaluator = Evaluator(model_args, model_args.model_name_or_path, data_args.data_path, evaluate_all_metrics=True, print_results=True)

@@ -170,8 +170,47 @@ CUDA_VISIBLE_DEVICES={DEVICE0, DEVICE1} torchrun --nproc_per_node=2 --master_por
 ## Evaluating on ProLex
 
 ### Evaluating your model checkpoints
+We implement the evaluation pipeline for ProLex in `evaluate.py`. The following example demonstrates how to obtain substitutes predicted by our fine-tuned models for a given word-sentence pair. Feel free to plug in your own model checkpoints to produce the results.
+
+```py
+from evaluate import format_test_prompt
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+# load model and tokenzier from HF
+model = AutoModelForCausalLM.from_pretrained("Columbia-NLP/vicuna-7b-v1.5-syn-ProLex")
+tokenzier = AutoTokenizer.from_pretrained("Columbia-NLP/vicuna-7b-v1.5-syn-ProLex")
+
+target_word = "obligatory"
+sentence = "Even though it was an **obligatory** experience, I could take part in a community program"
+
+system_input = format_test_prompt(target_word, sentence)
+input_ids = tokenizer.encode(system_input, return_tensors='pt', add_special_tokens=True)
+
+# Generate the candidates.
+model.eval()
+
+with torch.no_grad():
+    generated_ids = model.generate(
+        input_ids,
+        max_length=tokenizer.model_max_length,
+        temperature=0.2
+    )
+  
+# Decode the candidates.
+generated_texts = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
+
+print(generated_texts[0])
+```
+To evaluate on the whole dev/test set of ProLex, please run the following command, with `MODEL_PATH` being your own checkpoints to evaluate and `DATA_PATH` being either `data/dev/ProLex_v1.0_dev.csv` or `data/test/ProLex_v1.0_test.csv`.
+```
+python3 evaluate.py --model_name_or_path {MODEL_PATH} --data_path {DATA_PATH}
+```
 
 ### Evaluating your model predictions in files
+Alternatively, you can first store your model predictions into a CSV file and then upload it to evaluate with our pipeline. An example prediction file is shown in `outputs/example_predictions.csv`. Please follow its data format in contructing your own prediction file. The file path can be passed to `YOUR_FILE_PATH` in the following command:
+```
+python3 evaluate.py --model_name_or_path {YOUR_FILE_PATH} --data_path {DATA_PATH}
+```
 
 ## Citation
 We highly appriciate your interests in our work. If you find ProLex ✍️  helpful, please consider citing our paper in your work:

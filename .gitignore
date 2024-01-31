@@ -12,7 +12,8 @@ logs/*
 *.json
 !playground/deepspeed_config_s2.json
 !playground/deepspeed_config_s3.json
-outputs/*
+outputs/gpt_predictions/*
+outputs/printed_predictions/*
 
 # Editor
 .idea

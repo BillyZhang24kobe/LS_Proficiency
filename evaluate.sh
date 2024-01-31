@@ -23,8 +23,8 @@
     # --gradient_checkpointing True \
     # --lazy_preprocess False \
 
-CUDA_VISIBLE_DEVICES=6 python3 evaluate.py \
-    --model_name_or_path "/local/data/xuanming/models/output_llama2_13b_train_combined_lr_1e_5/checkpoint-1149" \
+python3 evaluate.py \
+    --model_name_or_path "outputs/example_predictions.csv" \
     --data_path data/test/ProLex_v1.0_test.csv
 
 # python3 evaluate.py \
