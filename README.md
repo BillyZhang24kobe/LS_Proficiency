@@ -93,15 +93,69 @@ Specifically, the script takes as an input the raw data from `data/raw/toefl_150
 We take the dev and test set from [Swords](https://github.com/p-lambda/swords) and retrieve the CEFR labels of all target words and their corresponding acceptable substitutes (i.e. score greater than 50%). We remove the substitutes that demonstrate lower proficiency than the target words. The modified dataset can be downloaded [here](https://github.com/BillyZhang24kobe/LS_Proficiency/blob/main/data/train/swords_filtered.csv).
 
 ### Instruction-tuning recipes
+We use the followingn script to fine-tune a 7B `Vicuna-1.5` and `Llama 2` models. The configuration details are provided to replicate our expeirment results. We build our experiments based on [FastChat](https://github.com/lm-sys/FastChat). Please fill in `DEVICE`, `MODEL_PATH`, `DATA_PATH`, and `OUTPUT_MODEL_PATH` accordingly.
+```
+CUDA_VISIBLE_DEVICES={DEVICE} python fastchat/train/train_mem.py \
+    --model_name_or_path {MODEL_PATH} \
+    --data_path {DATA_PATH} \
+    --bf16 True \
+    --output_dir {OUTPUT_MODEL_PATH} \
+    --num_train_epochs 10 \
+    --per_device_train_batch_size 1 \
+    --per_device_eval_batch_size 2 \
+    --gradient_accumulation_steps 1 \
+    --evaluation_strategy "no" \
+    --save_strategy "epoch" \
+    --save_steps 1200 \
+    --save_total_limit 10 \
+    --learning_rate 1e-5 \
+    --weight_decay 0. \
+    --warmup_steps 100 \
+    --lr_scheduler_type "linear" \
+    --logging_steps 1 \
+    --tf32 True \
+    --model_max_length 2048 \
+    --gradient_checkpointing True \
+    --lazy_preprocess False \
+```
+
+Similarly, we refer to the following script to fine-tune a 13B `Vicuna-1.5` and `Llama 2` models. We conduct each of these experiments on two `NVIDIA A100-80G` GPUs.
+
+```
+CUDA_VISIBLE_DEVICES={DEVICE0, DEVICE1} torchrun --nproc_per_node=2 --master_port=20003 fastchat/train/train_mem.py \
+    --model_name_or_path {MODEL_PATH} \
+    --data_path {DATA_PATH}  \
+    --bf16 True \
+    --output_dir {OUTPUT_MODEL_PATH} \
+    --num_train_epochs 5 \
+    --per_device_train_batch_size 1 \
+    --per_device_eval_batch_size 2 \
+    --gradient_accumulation_steps 1 \
+    --evaluation_strategy "no" \
+    --save_strategy "epoch" \
+    --save_steps 1200 \
+    --save_total_limit 10 \
+    --learning_rate 1e-5 \
+    --weight_decay 0. \
+    --warmup_steps 100 \
+    --lr_scheduler_type "linear" \
+    --logging_steps 1 \
+    --tf32 True \
+    --model_max_length 2048 \
+    --gradient_checkpointing True \
+    --lazy_preprocess False \
+    --fsdp "full_shard auto_wrap" \
+    --fsdp_transformer_layer_cls_to_wrap 'LlamaDecoderLayer'
+```
 
 ### Model Weights
 #### Vicuna-1.5 Weights
 | Size | Description | Hugging Face Repo |
 | ---  | --- | --- |
-| 7B   | `python3 -m fastchat.serve.cli --model-path lmsys/vicuna-7b-v1.5`  | [lmsys/vicuna-7b-v1.5](https://huggingface.co/lmsys/vicuna-7b-v1.5)   |
-| 7B-D<sub>LS</sub>   | `python3 -m fastchat.serve.cli --model-path lmsys/vicuna-7b-v1.5-16k`  | [lmsys/vicuna-7b-v1.5-16k](https://huggingface.co/lmsys/vicuna-7b-v1.5-16k)   |
-| 13B  | `python3 -m fastchat.serve.cli --model-path lmsys/vicuna-13b-v1.5` | [lmsys/vicuna-13b-v1.5](https://huggingface.co/lmsys/vicuna-13b-v1.5) |
-| 13B-D<sub>LS</sub> | `python3 -m fastchat.serve.cli --model-path lmsys/vicuna-13b-v1.5-16k` | [lmsys/vicuna-13b-v1.5-16k](https://huggingface.co/lmsys/vicuna-13b-v1.5-16k) |
+| 7B   | Our Vicuna-1.5 7B model finetuned on our task-specific synthetic data  | [Columbia-NLP/vicuna-7b-v1.5-syn-ProLex](https://huggingface.co/Columbia-NLP/vicuna-7b-v1.5-syn-ProLex)   |
+| 7B-D<sub>LS</sub>   | Our Vicuna-1.5 7B model finetuned on D<sub>LS</sub>, the combination of synthetic data and the modified data from Swords.  | [Columbia-NLP/vicuna-7b-v1.5-comb-ProLex](https://huggingface.co/Columbia-NLP/vicuna-7b-v1.5-comb-ProLex)   |
+| 13B  | Our Vicuna-1.5 13B model finetuned on our task-specific synthetic data  | [Columbia-NLP/vicuna-13b-v1.5-syn-ProLex](https://huggingface.co/Columbia-NLP/vicuna-13b-v1.5-syn-ProLex) |
+| 13B-D<sub>LS</sub> | Our Vicuna-1.5 13B model finetuned on D<sub>LS</sub>, the combination of synthetic data and the modified data from Swords. | [Columbia-NLP/vicuna-13b-v1.5-comb-ProLex](https://huggingface.co/Columbia-NLP/vicuna-13b-v1.5-comb-ProLex) |
 
 
 #### Llama-2 Weights

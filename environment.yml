@@ -120,6 +120,8 @@ dependencies:
       - contourpy==1.2.0
       - cycler==0.12.1
       - cymem==2.0.8
+      - datasets==2.16.1
+      - dill==0.3.7
       - docker-pycreds==0.4.0
       - einops==0.7.0
       - en-core-web-sm==3.7.1
@@ -129,7 +131,7 @@ dependencies:
       - fonttools==4.46.0
       - frozenlist==1.4.0
       - fschat==0.2.34
-      - fsspec==2023.12.2
+      - fsspec==2023.10.0
       - gitdb==4.0.11
       - gitpython==3.1.40
       - gradio==3.50.2
@@ -148,6 +150,7 @@ dependencies:
       - matplotlib==3.8.2
       - mdurl==0.1.2
       - multidict==6.0.4
+      - multiprocess==0.70.15
       - murmurhash==1.0.10
       - nh3==0.2.15
       - ninja==1.11.1.1
@@ -159,6 +162,8 @@ dependencies:
       - prompt-toolkit==3.0.43
       - protobuf==4.25.1
       - psutil==5.9.6
+      - pyarrow==15.0.0
+      - pyarrow-hotfix==0.6
       - pydantic==1.10.13
       - pydub==0.25.1
       - pygments==2.17.2
@@ -202,4 +207,5 @@ dependencies:
       - wcwidth==0.2.12
       - weasel==0.3.4
       - websockets==11.0.3
+      - xxhash==3.4.1
       - yarl==1.9.4
