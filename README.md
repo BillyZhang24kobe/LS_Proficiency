@@ -161,13 +161,17 @@ CUDA_VISIBLE_DEVICES={DEVICE0, DEVICE1} torchrun --nproc_per_node=2 --master_por
 #### Llama-2 Weights
 | Size | Description | Hugging Face Repo |
 | ---  | --- | --- |
-| 7B   | `python3 -m fastchat.serve.cli --model-path lmsys/vicuna-7b-v1.5`  | [lmsys/vicuna-7b-v1.5](https://huggingface.co/lmsys/vicuna-7b-v1.5)   |
-| 7B-D<sub>LS</sub>   | `python3 -m fastchat.serve.cli --model-path lmsys/vicuna-7b-v1.5-16k`  | [lmsys/vicuna-7b-v1.5-16k](https://huggingface.co/lmsys/vicuna-7b-v1.5-16k)   |
-| 13B  | `python3 -m fastchat.serve.cli --model-path lmsys/vicuna-13b-v1.5` | [lmsys/vicuna-13b-v1.5](https://huggingface.co/lmsys/vicuna-13b-v1.5) |
-| 13B-D<sub>LS</sub> | `python3 -m fastchat.serve.cli --model-path lmsys/vicuna-13b-v1.5-16k` | [lmsys/vicuna-13b-v1.5-16k](https://huggingface.co/lmsys/vicuna-13b-v1.5-16k) |
+| 7B   | Our Llama-2 7B model finetuned on our task-specific synthetic data  | [Columbia-NLP/llama-2-7b-hf-syn-ProLex](https://huggingface.co/Columbia-NLP/llama-2-7b-hf-syn-ProLex)   |
+| 7B-D<sub>LS</sub>   | Our Llama-2 7B model finetuned on D<sub>LS</sub>, the combination of synthetic data and the modified data from Swords.  | [Columbia-NLP/llama-2-7b-hf-comb-ProLex](https://huggingface.co/Columbia-NLP/llama-2-7b-hf-comb-ProLex)   |
+| 13B  | Our Llama-2 13B model finetuned on our task-specific synthetic data | [Columbia-NLP/llama-2-13b-hf-syn-ProLex](https://huggingface.co/Columbia-NLP/llama-2-13b-hf-syn-ProLex) |
+| 13B-D<sub>LS</sub> | Our Llama-2 13B model finetuned on D<sub>LS</sub>, the combination of synthetic data and the modified data from Swords. | [Columbia-NLP/llama-2-13b-hf-comb-ProLex](https://huggingface.co/Columbia-NLP/llama-2-13b-hf-comb-ProLex) |
 
 
 ## Evaluating on ProLex
+
+### Evaluating your model checkpoints
+
+### Evaluating your model predictions in files
 
 ## Citation
 We highly appriciate your interests in our work. If you find ProLex ✍️  helpful, please consider citing our paper in your work:
