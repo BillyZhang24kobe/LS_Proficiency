@@ -1,8 +1,14 @@
+import sys
+from pathlib import Path
 import pandas as pd
 import nltk
 nltk.download('averaged_perceptron_tagger')
 from nltk.tokenize import word_tokenize
 from nltk.tokenize.treebank import TreebankWordDetokenizer
+
+# support running without installing as a package
+wd = Path(__file__).parent.parent.parent.resolve()
+sys.path.append(str(wd))
 
 def nltk_to_wordnet_pos(tag):
     if tag.startswith('NN'):
@@ -37,32 +43,32 @@ def find_word_index(tagged_sentence, target_word):
 def prolex_to_parals_input():
     '''
     Convert the ProLex test set to the input format specified by the ParaLS repo.
-    Saves the target with context at data/test/processed.tsv,
-    and saves gold substitute files for both acceptable substitutes (data/test/gold_acc.tsv)
-    and proficiency-oriented substitutes (data/test/gold_prof_acc.tsv).
+    Saves the target with context at baselines/test/processed.tsv,
+    and saves gold substitute files for both acceptable substitutes (baselines/test/gold_acc.tsv)
+    and proficiency-oriented substitutes (baselines/test/gold_prof_acc.tsv).
     '''
     data = pd.read_csv('data/test/ProLex_v1.0_test.csv')
     data['instance'] = data.index
     res = data.apply(lambda row: find_word_index(row['Sentence'], row['target word']), axis=1, result_type='expand')
     data = pd.concat([data, res], axis='columns')
     data['target_word'] = data['target word'] + "." + data['pos']
-    data.to_csv('data/test/processed.tsv', sep='\t', index=False, header=False, columns=['target_word', 'instance', 'word_index', 'sent'])
+    data.to_csv('baselines/test/processed.tsv', sep='\t', index=False, header=False, columns=['target_word', 'instance', 'word_index', 'sent'])
     data['sep'] = '::'
     data['acc_subs'] = data['acc_subs'].map(eval)
     data['acc_subs'] = data['acc_subs'].str.join(' 1;') + ' 1;'
     data['prof_acc_subs'] = data['prof_acc_subs'].map(eval)
     data['prof_acc_subs'] = data['prof_acc_subs'].str.join(' 1;') + ' 1;'
-    data.to_csv('data/test/gold_acc.tsv', sep='\t', index=False, header=False, columns=['target_word', 'instance', 'sep', 'acc_subs'])
-    data.to_csv('data/test/gold_prof_acc.tsv', sep='\t', index=False, header=False, columns=['target_word', 'instance', 'sep', 'prof_acc_subs'])
+    data.to_csv('baselines/test/gold_acc.tsv', sep='\t', index=False, header=False, columns=['target_word', 'instance', 'sep', 'acc_subs'])
+    data.to_csv('baselines/test/gold_prof_acc.tsv', sep='\t', index=False, header=False, columns=['target_word', 'instance', 'sep', 'prof_acc_subs'])
 
 def parals_output_to_prolex():
     '''
     Convert the output from ParaLS to the ProLex format for evaluation.
-    Uses the target with context file from data/test/processed.tsv
+    Uses the target with context file from baselines/test/processed.tsv
     and ParaLS outputs (best out of ten) copied over, and
     saves the converted output to outputs/ParaLS_test.csv.
     '''
-    target = pd.read_csv('data/test/processed.tsv', sep='\t', header=None, names=['target_word', 'instance', 'word_index', 'sent'])
+    target = pd.read_csv('baselines/test/processed.tsv', sep='\t', header=None, names=['target_word', 'instance', 'word_index', 'sent'])
     output = pd.read_csv('baselines/ParaLS_results/test/lspro.out.embed.0.02.oot', sep=' ', header=None, names=['target_word', 'instance', 'sep', 'subs'])
     target = target.merge(output, on='instance', suffixes=(None, '_out'))
     detok = TreebankWordDetokenizer()
