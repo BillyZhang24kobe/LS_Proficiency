@@ -15,7 +15,7 @@ import pandas as pd
 import ast
 from torch.nn.utils.rnn import pad_sequence
 
-from train import rank0_print, format_input_prompt, format_target_prompt
+from utils import *
 
 
 def preprocess(
@@ -72,7 +72,7 @@ class SupervisedDataset(Dataset):
     def __init__(self, raw_data, tokenizer: transformers.PreTrainedTokenizer):
         super(SupervisedDataset, self).__init__()
 
-        rank0_print("Formatting inputs...")
+        print("Formatting inputs...")
         sources = [(t_word, t_sentence, subs) for t_word, t_sentence, subs in zip(raw_data['target_words'], raw_data['tagged_sentences'], raw_data['substitutes'].apply(lambda x : ast.literal_eval(x)))]
         data_dict = preprocess(sources, tokenizer)
 
@@ -97,7 +97,7 @@ class TestDataset(Dataset):
     def __init__(self, raw_data, tokenizer: transformers.PreTrainedTokenizer):
         super(TestDataset, self).__init__()
 
-        rank0_print("Formatting inputs...")
+        print("Formatting inputs...")
         sources = [(t_word, t_sentence, subs) for t_word, t_sentence, subs in zip(raw_data['target_words'], raw_data['Sentences'], raw_data['substitutes'].apply(lambda x : ast.literal_eval(x)))]
         data_dict = preprocess(sources, tokenizer, is_test=True)
 
@@ -123,7 +123,7 @@ class LazySupervisedDataset(Dataset):
         super(LazySupervisedDataset, self).__init__()
         self.tokenizer = tokenizer
 
-        rank0_print("Formatting inputs...Skip in lazy mode")
+        print("Formatting inputs...Skip in lazy mode")
         self.tokenizer = tokenizer
         self.raw_data = raw_data
         self.cached_data_dict = {}
@@ -153,7 +153,7 @@ def make_supervised_data_module(
     dataset_cls = (
         LazySupervisedDataset if data_args.lazy_preprocess else SupervisedDataset
     )
-    rank0_print("Loading data...")
+    print("Loading data...")
 
     # train_json = json.load(open(data_args.data_path, "r"))
     train_csv = pd.read_csv(data_args.data_path, index_col=False)
@@ -173,7 +173,7 @@ def make_test_data_module(
 ) -> Dict:
     """Make dataset and collator for supervised fine-tuning."""
     dataset_cls = (TestDataset)
-    rank0_print("Loading data...")
+    print("Loading data...")
 
     # train_json = json.load(open(data_args.data_path, "r"))
     test_csv = pd.read_csv(data_args.data_path, index_col=False)

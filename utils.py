@@ -105,3 +105,9 @@ def get_cefr_level(original_context, target_word):
         cefr_level = None
 
     return cefr_level
+
+def format_input_prompt(target_word, sentence):
+    return """You are about to perform a lexical substitution task, considering the proficiency level of the substitute compared to the target word in a sentence. The task is to generate a set of candidate substitutes seperated by commas for a target word in a given sentence. The target word is highlighted in the sentence, encompassed by two double asterisks. The candidate substitutes should be: \n a) common collocations or expressions in actual English use, \n b) grammatically correct, \n c) have an equal or higher language proficiency level compared to the target word. Target word: {} \n Sentence: {}""".format(target_word, sentence)
+
+def format_target_prompt(substitutes):
+    return "Substitutes: {}</s>".format(substitutes)
