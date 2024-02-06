@@ -18,7 +18,8 @@ def nltk_to_wordnet_pos(tag):
 
 def find_word_index(tagged_sentence, target_word):
     '''
-    Find the index of the target word in the tagged sentence or context sentence 
+    Find the index of the target word in the tagged sentence or context sentence.
+    Also POS tags the target word for ParaLS input.
     '''
     tagged_sentence.replace(f"**{target_word}**", "*")
     # Splitting the sentence into words
@@ -33,8 +34,14 @@ def find_word_index(tagged_sentence, target_word):
                     return {'word_index': i, "pos": nltk_to_wordnet_pos(tag), "sent": " ".join(sentence)}
     return {'word_index': -1, "pos": None, "sent": None}
 
-def lspro_to_parals_input():
-    data = pd.read_csv('data/test/LS-Pro_test_final_cefr.csv')
+def prolex_to_parals_input():
+    '''
+    Convert the ProLex test set to the input format specified by the ParaLS repo.
+    Saves the target with context at data/test/processed.tsv,
+    and saves gold substitute files for both acceptable substitutes (data/test/gold_acc.tsv)
+    and proficiency-oriented substitutes (data/test/gold_prof_acc.tsv).
+    '''
+    data = pd.read_csv('data/test/ProLex_v1.0_test.csv')
     data['instance'] = data.index
     res = data.apply(lambda row: find_word_index(row['Sentence'], row['target word']), axis=1, result_type='expand')
     data = pd.concat([data, res], axis='columns')
@@ -48,16 +55,24 @@ def lspro_to_parals_input():
     data.to_csv('data/test/gold_acc.tsv', sep='\t', index=False, header=False, columns=['target_word', 'instance', 'sep', 'acc_subs'])
     data.to_csv('data/test/gold_prof_acc.tsv', sep='\t', index=False, header=False, columns=['target_word', 'instance', 'sep', 'prof_acc_subs'])
 
-def parals_output_to_lspro():
+def parals_output_to_prolex():
+    '''
+    Convert the output from ParaLS to the ProLex format for evaluation.
+    Uses the target with context file from data/test/processed.tsv
+    and ParaLS outputs (best out of ten) copied over, and
+    saves the converted output to outputs/ParaLS_test.csv.
+    '''
     target = pd.read_csv('data/test/processed.tsv', sep='\t', header=None, names=['target_word', 'instance', 'word_index', 'sent'])
-    output = pd.read_csv('data/ParaLS_results/test/lspro.out.embed.0.02.oot', sep=' ', header=None, names=['target_word', 'instance', 'sep', 'subs'])
+    output = pd.read_csv('baselines/ParaLS_results/test/lspro.out.embed.0.02.oot', sep=' ', header=None, names=['target_word', 'instance', 'sep', 'subs'])
     target = target.merge(output, on='instance', suffixes=(None, '_out'))
     detok = TreebankWordDetokenizer()
     target['target word'] = target['target_word'].str.split('.').str[0]
     target['sent'] = target['sent'].str.split(' ')
     target['Sentence'] = target.apply(lambda row: detok.detokenize(row['sent'][:row['word_index']] + [f"**{row['target word']}**"] + row['sent'][row['word_index']+1:]), axis=1)
     target['Substitutes'] = target['subs'].str.replace(';', ', ')
-    target.to_csv('outputs/para-ls_test_final_cefr.csv', index=False, columns=['target word','Sentence','Substitutes'])
+    target.to_csv('outputs/ParaLS_test.csv', index=False, columns=['target word','Sentence','Substitutes'])
 
 
-parals_output_to_lspro()
+if __name__ == '__main__':
+    prolex_to_parals_input()
+    # parals_output_to_prolex()
