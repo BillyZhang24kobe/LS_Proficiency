@@ -16,8 +16,12 @@ We have prepared a script `transform_dataset.py` to help with transforming betwe
 python3 transform_dataset.py --direction prolex_to_parals --split test
 ```
 
+This command will save the target with context at `baselines/ParaLS_results/<split>/processed.tsv`, and save gold substitute files for both acceptable substitutes (`baselines/ParaLS_results/<split>/gold_acc.tsv`) and proficiency-oriented substitutes (`baselines/ParaLS_results/<split>/gold_prof_acc.tsv`). We can copy these three files to the ParaLS repo and put it under `data/LSPro/test`. In our [fork](https://github.com/cynic01/ParaLS/tree/main/data/LSPro/test) it is already there.
+
 ## Run ParaLS
 We have created a fork of the ParaLS repo [here](https://github.com/cynic01/ParaLS) mainly to store our replication results and modify their code for ease of use. Please clone this repository and run it according to the README instructions. Alternatively, you can use the code from the original authors [here](https://github.com/qiang2100/ParaLS).
+
+The results file in the ParaLS repo will be under a path like `lspro_search_results/log.###/lspro.out.embed.0.02.oot` if our fork is used. Copy this file to the directory `baselines/ParaLS_results/test` in this repo before proceeding to the next step.
 
 ## Transform ParaLS output into ProLex format
 We can use `transform_dataset.py` to transform the ParaLS output back to the ProLex format.
@@ -25,6 +29,8 @@ We can use `transform_dataset.py` to transform the ParaLS output back to the Pro
 ```
 python3 transform_dataset.py --direction parals_to_prolex --split test
 ```
+
+The converted outputs are stored under `outputs/ParaLS_test.csv`.
 
 ## Evaluating on ProLex
 We can now evaluate the ParaLS model outputs using `evaluate.py`.
