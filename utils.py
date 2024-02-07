@@ -1,12 +1,3 @@
-import requests
-import re
-
-# Cathoven AI credentials
-import api_secrets
-client_id = api_secrets.Client_ID
-client_secret = api_secrets.Client_Secret
-
-
 def find_word_index(tagged_sentence, context_sentence, target_word):
     '''
     Find the index of the target word in the tagged sentence or context sentence 
@@ -46,6 +37,11 @@ def get_cefr_level(original_context, target_word):
     '''
     Get the CEFR level of the target word in the original context
     '''
+    # Cathoven AI credentials
+    import requests
+    import api_secrets
+    client_id = api_secrets.Client_ID
+    client_secret = api_secrets.Client_Secret
 
     data = {
         'client_id': client_id,
