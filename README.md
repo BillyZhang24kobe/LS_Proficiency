@@ -23,7 +23,7 @@ In general, this repository offers:
 3. A standardized evaluation pipeline
 
 ## News
-- [2024/05] ProLex gets accepted by ACL 2024 Findings! We released the camera-ready version of the paper.
+- [2024/05] ProLex gets accepted by ACL 2024 Findings! The camera-ready version of it is also released.
 - [2024/01] 🔥 We released the very first version of ProLex. Read the [paper](https://arxiv.org/abs/2401.11356) for more details!
 
 
