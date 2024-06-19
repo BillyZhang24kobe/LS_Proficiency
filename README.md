@@ -23,6 +23,7 @@ In general, this repository offers:
 3. A standardized evaluation pipeline
 
 ## News
+- [2024/05] ProLex gets accepted by ACL 2024 Findings! We released the camera-ready version of the paper.
 - [2024/01] 🔥 We released the very first version of ProLex. Read the [paper](https://arxiv.org/abs/2401.11356) for more details!
 
 
@@ -214,6 +215,7 @@ python3 evaluate.py --model_name_or_path {YOUR_FILE_PATH} --data_path {DATA_PATH
 
 ## Citation
 We highly appriciate your interests in our work. If you find ProLex ✍️  helpful, please consider citing our paper in your work:
+Xuanming Zhang, Zixun Chen, Zhou Yu. ACL 2024 (Findings). [ProLex: A Benchmark for Language Proficiency-oriented Lexical Substitution](https://arxiv.org/abs/2401.11356).
 
 ```
 @article{zhang2024prolex,
