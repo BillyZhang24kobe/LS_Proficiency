@@ -215,6 +215,7 @@ python3 evaluate.py --model_name_or_path {YOUR_FILE_PATH} --data_path {DATA_PATH
 
 ## Citation
 We highly appriciate your interests in our work. If you find ProLex ✍️  helpful, please consider citing our paper in your work:
+
 Xuanming Zhang, Zixun Chen, Zhou Yu. ACL 2024 (Findings). [ProLex: A Benchmark for Language Proficiency-oriented Lexical Substitution](https://arxiv.org/abs/2401.11356).
 
 ```
